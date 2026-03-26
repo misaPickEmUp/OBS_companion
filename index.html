@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OBS Sync Pro</title>
+    <script src="obs-websocket.js"></script>
+    <style>
+        :root { --bg: #1a1b26; --panel: #24283b; --accent: #0db9d7; --text: #c0caf5; --danger: #f7768e; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; height: 100vh; gap: 10px; padding: 10px; box-sizing: border-box; }
+        .panel { background: var(--panel); border-radius: 12px; padding: 15px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        button { background: #414868; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; min-height: 70px; cursor: pointer; }
+        input { background: #1a1b26; border: 1px solid #414868; color: white; padding: 12px; border-radius: 6px; margin-bottom: 10px; width: calc(100% - 26px); }
+    </style>
+</head>
+<body>
+
+    <script>
+        // TOP LEVEL LOGGER - Sends errors to your terminal instantly
+        window.onerror = function(msg, url, line) {
+            fetch('/log', {method: 'POST', body: `LINE ${line}: ${msg}`});
+        };
+    </script>
+
+    <div class="panel">
+        <h2>Scenes</h2>
+        <div id="scene-list" class="grid"></div>
+    </div>
+
+    <div class="panel">
+        <h2>Soundboard</h2>
+        <div style="display:flex; gap:5px; margin-bottom:10px;">
+            <input type="text" id="new-sound-name" placeholder="Source Name">
+            <button onclick="addSound()" style="min-height:unset; padding:10px; background:var(--accent); color:black;">Add</button>
+        </div>
+        <div id="sound-list" class="grid"></div>
+    </div>
+
+    <div class="panel" style="max-width: 300px;">
+        <h2>Settings</h2>
+        <input type="text" id="obs-ip" placeholder="IP:4455">
+        <input type="password" id="obs-pw" placeholder="Password">
+        <button onclick="connectOBS()" style="background: var(--accent); color: black;">Connect</button>
+        <p id="debug-log" style="font-size: 0.7rem; color: #565f89; margin-top: 20px;">System Ready...</p>
+    </div>
+
+    <script>
+        const obs = new OBSWebSocket();
+        let soundboard = [];
+
+        // This function logs to BOTH the iPad screen and your terminal
+        function log(msg) {
+            console.log(msg);
+            document.getElementById('debug-log').innerText = msg;
+            fetch('/log', {method: 'POST', body: msg});
+        }
+
+        window.onload = async () => {
+            log("Attempting to load settings...");
+            try {
+                const res = await fetch('/load');
+                const data = await res.json();
+                if (data.sounds) soundboard = data.sounds;
+                if (data.obsIp) document.getElementById('obs-ip').value = data.obsIp;
+                renderSounds(false);
+                log("Settings loaded from Thinkpad");
+            } catch (e) { log("Load failed: " + e); }
+        };
+
+        async function save() {
+            const data = { sounds: soundboard, obsIp: document.getElementById('obs-ip').value };
+            await fetch('/save', { method: 'POST', body: JSON.stringify(data) });
+        }
+
+        async function connectOBS() {
+            log("Connecting...");
+            const ip = document.getElementById('obs-ip').value;
+            const pw = document.getElementById('obs-pw').value;
+            try {
+                await obs.connect(`ws://${ip}`, pw);
+                log("🟢 OBS Connected!");
+                save();
+                const { scenes } = await obs.call('GetSceneList');
+                const container = document.getElementById('scene-list');
+                container.innerHTML = '';
+                scenes.forEach(s => {
+                    const btn = document.createElement('button');
+                    btn.innerText = s.sceneName;
+                    btn.onclick = () => obs.call('SetCurrentProgramScene', { sceneName: s.sceneName });
+                    container.appendChild(btn);
+                });
+            } catch (e) { log("🔴 Connection Error: " + e); }
+        }
+
+        function renderSounds(shouldSave = true) {
+            const container = document.getElementById('sound-list');
+            container.innerHTML = '';
+            soundboard.forEach(s => {
+                const btn = document.createElement('button');
+                btn.innerText = "🔊 " + s;
+                btn.onclick = () => obs.call('TriggerMediaInputAction', {
+                    inputName: s, mediaAction: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART'
+                });
+                container.appendChild(btn);
+            });
+            if (shouldSave) save();
+        }
+
+        function addSound() {
+            const val = document.getElementById('new-sound-name').value;
+            if(val) {
+                soundboard.push(val);
+                document.getElementById('new-sound-name').value = '';
+                renderSounds();
+                log("Added sound: " + val);
+            }
+        }
+    </script>
+</body>
+</html>
