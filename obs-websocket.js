@@ -1,1 +1,1 @@
-Couldn't find the requested file /dist/obs-websocket-js.min.js in obs-websocket-js.
+Not found: /obs-websocket-js@5.0.3/dist/obs-websocket.min.js
