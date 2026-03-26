@@ -1,2 +1,3 @@
 # OBS_companion
-TBD
+Basically i wanna make a app to control OBS from
+
