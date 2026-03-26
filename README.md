@@ -1,6 +1,6 @@
 # OBS Sync Pro 🎛️
 
-*Heads up: Most of this code was made with the help of AI. I just needed a quick tool to control OBS from my iPad, so this isn't like  a performance showcase*
+*Heads up: Most of this code was made with AI. I just wanted to make this tool to control OBS, so this isn't like a performance showcase*
 
 A lightweight, privacy-first web remote for OBS Studio, optimized for touch devices. It uses a local Python server to sync your soundboard and settings across your home network without relying on third-party cloud databases.
 
